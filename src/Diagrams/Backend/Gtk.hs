@@ -17,17 +17,25 @@ module Diagrams.Backend.Gtk
        , renderToGtk
        ) where
 
-import           Diagrams.Backend.Cairo          as Cairo
-import           Diagrams.Prelude                hiding (height, width)
-
--- Below hack is needed because GHC 7.0.x has a bug regarding export
--- of data family constructors; see comments in Diagrams.Backend.Cairo
-#if __GLASGOW_HASKELL__ < 702 || __GLASGOW_HASKELL__ >= 704
+import           Control.Monad.Trans.Reader (runReaderT)
+import           Data.Maybe (fromJust)
+import           Diagrams.Prelude hiding (height, width)
 import           Diagrams.Backend.Cairo.Internal
-#endif
+import           Foreign.Ptr (castPtr)
+import           GHC.Int
+import qualified GI.Cairo (Context(..))
+import           GI.Gtk
+import qualified Graphics.Rendering.Cairo as Cairo
+import qualified Graphics.Rendering.Cairo.Internal as Cairo (Render(runRender))
+import qualified Graphics.Rendering.Cairo.Types as Cairo (Cairo(Cairo))
 
-import qualified Graphics.Rendering.Cairo        as CG
-import           Graphics.UI.Gtk
+-- | This function bridges gi-cairo with the hand-written cairo
+-- package. It takes a `GI.Cairo.Context` (as it appears in gi-cairo),
+-- and a `Render` action (as in the cairo lib), and renders the
+-- `Render` action into the given context.
+renderWithContext :: GI.Cairo.Context -> Cairo.Render () -> IO ()
+renderWithContext ct r = withManagedPtr ct $ \p ->
+                         runReaderT (Cairo.runRender r) (Cairo.Cairo (castPtr p))
 
 -- | Convert a Diagram to the backend coordinates.
 --
@@ -51,9 +59,9 @@ toGtkCoords d = (\(_,_,d') -> d') $
 -- | Render a diagram to a DrawingArea with double buffering,
 --   rescaling to fit the full area.
 defaultRender :: Monoid' m => DrawingArea -> QDiagram Cairo V2 Double m -> IO ()
-defaultRender drawingarea diagram = do
-  drawWindow <- (widgetGetDrawWindow drawingarea)
-  renderDoubleBuffered drawWindow opts diagram
+defaultRender da diagram = do
+  drawWindow <- fromJust <$> widgetGetWindow da
+  renderDoubleBuffered da opts diagram
     where opts w h = (CairoOptions
               { _cairoFileName     = ""
               , _cairoSizeSpec     = dims (V2 (fromIntegral w) (fromIntegral h))
@@ -68,11 +76,11 @@ defaultRender drawingarea diagram = do
 --   Typically the diagram will already have been transformed by
 --   'toGtkCoords'.
 renderToGtk ::
-  (DrawableClass dc, Monoid' m)
-  => dc                     -- ^ widget to render onto
+  (Monoid' m)
+  => DrawingArea -- ^ DrawingArea widget to render onto
   -> QDiagram Cairo V2 Double m  -- ^ Diagram
   -> IO ()
-renderToGtk drawable = do renderDoubleBuffered drawable opts
+renderToGtk da = do renderDoubleBuffered da opts
   where opts _ _ = (CairoOptions
                     { _cairoFileName     = ""
                     , _cairoSizeSpec     = absolute
@@ -82,36 +90,40 @@ renderToGtk drawable = do renderDoubleBuffered drawable opts
                    )
 
 
--- | Render a diagram onto a 'DrawableClass' using the given CairoOptions.
+-- | Render a diagram onto a 'DrawingArea' using the given CairoOptions.
 --
 --   This uses cairo double-buffering.
 renderDoubleBuffered ::
-  (Monoid' m, DrawableClass dc) =>
-  dc -- ^ drawable to render onto
-  -> (Int -> Int -> Options Cairo V2 Double) -- ^ options, depending on drawable width and height
+  (Monoid' m) =>
+  DrawingArea -- ^ DrawingArea's Window to render onto
+  -> (Int32 -> Int32 -> Options Cairo V2 Double) -- ^ options, depending on drawable width and height
   -> QDiagram Cairo V2 Double m -- ^ Diagram
   -> IO ()
-renderDoubleBuffered drawable renderOpts diagram = do
-  (w,h) <- drawableGetSize drawable
-  let opts = renderOpts w h
-      renderAction = delete w h >> snd (renderDia Cairo opts diagram)
-  renderWithDrawable drawable (doubleBuffer renderAction)
+renderDoubleBuffered da renderOpts diagram = do
+    w <- widgetGetAllocatedWidth da
+    h <- widgetGetAllocatedHeight da
+    let opts = renderOpts w h
+    onWidgetDraw da $ \ctx -> do
+        renderWithContext ctx (do
+            delete w h
+            snd (renderDia Cairo opts diagram))
+        return True
+    return ()
 
-
--- | White rectangle of size (w,h).
 --
 --   Used to clear canvas when using double buffering.
-delete :: Int -> Int -> CG.Render ()
+delete :: Int32 -> Int32 -> Cairo.Render ()
 delete w h = do
-  CG.setSourceRGB 1 1 1
-  CG.rectangle 0 0 (fromIntegral w) (fromIntegral h)
-  CG.fill
+  Cairo.setSourceRGB 1 1 1
+  Cairo.rectangle 0 0 (fromIntegral w) (fromIntegral h)
+  Cairo.fill
 
 
 -- | Wrap the given render action in double buffering.
-doubleBuffer :: CG.Render () -> CG.Render ()
+doubleBuffer :: Cairo.Render () -> Cairo.Render ()
 doubleBuffer renderAction = do
-  CG.pushGroup
+  Cairo.pushGroup
   renderAction
-  CG.popGroupToSource
-  CG.paint
+  Cairo.popGroupToSource
+  Cairo.paint
+

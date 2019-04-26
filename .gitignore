@@ -1,5 +1,6 @@
 dist
 cabal-dev
+*.swp
 *.o
 *.hi
 *.chi
@@ -12,3 +13,4 @@ dist_*
 cabal.sandbox.config
 history
 TAGS
+.stack-work

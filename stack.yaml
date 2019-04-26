@@ -1,0 +1,6 @@
+resolver: lts-12.26
+packages:
+- .
+extra-deps: [gi-cairo-connector-0.0.1,
+             gi-cairo-render-0.0.1,
+             cairo-0.13.6.0]
