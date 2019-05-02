@@ -4,3 +4,4 @@ packages:
 extra-deps: [gi-cairo-connector-0.0.1,
              gi-cairo-render-0.0.1,
              cairo-0.13.6.0]
+allow-newer: true

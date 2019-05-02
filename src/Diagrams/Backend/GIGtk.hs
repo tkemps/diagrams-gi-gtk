@@ -11,7 +11,7 @@
 --
 -----------------------------------------------------------------------------
 
-module Diagrams.Backend.Gtk
+module Diagrams.Backend.GIGtk
        ( defaultRender
        , toGtkCoords
        , renderToGtk
@@ -58,10 +58,9 @@ toGtkCoords d = (\(_,_,d') -> d') $
 
 -- | Render a diagram to a DrawingArea with double buffering,
 --   rescaling to fit the full area.
-defaultRender :: Monoid' m => DrawingArea -> QDiagram Cairo V2 Double m -> IO ()
-defaultRender da diagram = do
-  drawWindow <- fromJust <$> widgetGetWindow da
-  renderDoubleBuffered da opts diagram
+defaultRender :: Monoid' m => GI.Cairo.Context -> QDiagram Cairo V2 Double m -> IO ()
+defaultRender ctx diagram = do
+  renderDoubleBuffered ctx opts diagram
     where opts w h = (CairoOptions
               { _cairoFileName     = ""
               , _cairoSizeSpec     = dims (V2 (fromIntegral w) (fromIntegral h))
@@ -77,10 +76,10 @@ defaultRender da diagram = do
 --   'toGtkCoords'.
 renderToGtk ::
   (Monoid' m)
-  => DrawingArea -- ^ DrawingArea widget to render onto
+  => GI.Cairo.Context -- ^ DrawingArea widget to render onto
   -> QDiagram Cairo V2 Double m  -- ^ Diagram
   -> IO ()
-renderToGtk da = do renderDoubleBuffered da opts
+renderToGtk ctx = renderDoubleBuffered ctx opts
   where opts _ _ = (CairoOptions
                     { _cairoFileName     = ""
                     , _cairoSizeSpec     = absolute
@@ -95,20 +94,18 @@ renderToGtk da = do renderDoubleBuffered da opts
 --   This uses cairo double-buffering.
 renderDoubleBuffered ::
   (Monoid' m) =>
-  DrawingArea -- ^ DrawingArea's Window to render onto
+  GI.Cairo.Context -- ^ DrawingArea's Window to render onto
   -> (Int32 -> Int32 -> Options Cairo V2 Double) -- ^ options, depending on drawable width and height
   -> QDiagram Cairo V2 Double m -- ^ Diagram
   -> IO ()
-renderDoubleBuffered da renderOpts diagram = do
-    w <- widgetGetAllocatedWidth da
-    h <- widgetGetAllocatedHeight da
-    let opts = renderOpts w h
-    onWidgetDraw da $ \ctx -> do
-        renderWithContext ctx (do
-            delete w h
-            snd (renderDia Cairo opts diagram))
-        return True
-    return ()
+renderDoubleBuffered ctx renderOpts diagram =
+    renderWithContext ctx (do
+        (x1, x2, y1, y2) <- Cairo.clipExtents
+        let w = round $ x2 - x1
+            h = round $ y2 - y1
+            opts = renderOpts w h
+        delete w h
+        snd (renderDia Cairo opts diagram))
 
 --
 --   Used to clear canvas when using double buffering.
