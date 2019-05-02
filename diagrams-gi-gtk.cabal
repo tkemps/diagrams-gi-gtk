@@ -19,6 +19,10 @@ source-repository head
   type:     git
   location: http://github.com/tkemps/diagrams-gi-gtk.git
 
+flag buildExamples
+    description: Build example executables
+    default: False
+
 library
   exposed-modules:     Diagrams.Backend.GIGtk
   build-depends:       base >= 4.2 && < 4.12,
@@ -33,9 +37,8 @@ library
   default-language:    Haskell2010
 
 executable ex1
-  hs-source-dirs:      examples
-  main-is:             diagrams-gi-gtk-example1.hs
-  build-depends:       base >= 4.2 && < 4.12,
+  if flag(buildExamples)
+    build-depends:     base >= 4.2 && < 4.12,
                        text >= 1.2 && <= 1.3,
                        diagrams >= 1.4 && < 1.5,
                        diagrams-lib >= 1.4 && < 1.5,
@@ -48,5 +51,9 @@ executable ex1
                        haskell-gi-base >= 0.21,
                        gi-glib >= 2.0,
                        vector-space >= 0.16 && < 0.17
+  else
+    buildable: False
+  hs-source-dirs:      examples
+  main-is:             diagrams-gi-gtk-example1.hs
   default-language:    Haskell2010
 
