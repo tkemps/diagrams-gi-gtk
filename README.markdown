@@ -28,7 +28,11 @@ If you like stack then
 
     stack build
 
-should do the trick too.
+should do the trick too. In order to include the example in the build use
+
+    stack build --flag diagrams-gi-gtk:buildExamples
+
+instead.
 
 # License
 
