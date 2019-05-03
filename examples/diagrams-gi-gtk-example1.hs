@@ -14,9 +14,8 @@ import Diagrams.Size (requiredScaling)
 import Diagrams.Backend.GIGtk
 import Diagrams.Backend.Cairo (Cairo)
 import qualified Data.Colour as C
-import Data.Text (Text)
-import qualified Data.Text as T
 
+-- The classic Hilbert curves from the diagrams gallery:
 hilbert :: Int -> Diagram Cairo
 hilbert = frame 1 . lw medium . lc (colors!!1) . strokeT . hilbert'
   where
@@ -31,7 +30,7 @@ hilbert = frame 1 . lw medium . lc (colors!!1) . strokeT . hilbert'
         hilbert'' :: Int -> Trail V2 Double
         hilbert'' m = hilbert' m # rotateBy (1/4)
 
--- Our drawing code, copied from
+-- Some more drawing code, copied from
 -- projects.haskell.org/diagrams/gallery/Pentaflake.html
 colors ::[Colour Double]
 colors = iterate (C.blend 0.1 white) red
@@ -53,8 +52,6 @@ pentaflake n = appends (p' # fc (colors !! (n-1)))
 
 pentaflake' ::Int -> Diagram Cairo
 pentaflake' n = pentaflake n # fc (colors !! n)
-
--- end of diagrams code
 
 -- A function to set up the main window and signal handlers
 createMainWindow :: IO Gtk.Window
@@ -91,15 +88,15 @@ createMainWindow = do
 
     on rbHilbert #toggled $ do
         Gtk.widgetQueueDraw drawArea
-        hilbertActive <- get rbHilbert #active
-        putStrLn $ "Hilbert curve is: "++(show hilbertActive)
+--        hilbertActive <- get rbHilbert #active
+--        putStrLn $ "Hilbert curve is: "++(show hilbertActive)
         return ()
-
-    on rbPentaFlake #toggled $ do
-        pentaFlakeActive <- get rbPentaFlake #active
-        putStrLn $ "Penta flake is: "++(show pentaFlakeActive)
-        return ()
-
+--
+--    on rbPentaFlake #toggled $ do
+--        pentaFlakeActive <- get rbPentaFlake #active
+--        putStrLn $ "Penta flake is: "++(show pentaFlakeActive)
+--        return ()
+--
     -- handle the drawArea's @onExpose@ signal.  We provide a function
     -- that takes an area marked as dirty and redraws it.
     -- This program simply redraws the entire drawArea.
@@ -117,7 +114,7 @@ createMainWindow = do
             h = height dia
             spec = mkSizeSpec2D (Just $ fromIntegral canvasX) (Just $ fromIntegral canvasY)
             scaledDia = toGtkCoords $ transform (requiredScaling spec (V2 w h)) dia
-        renderToGtk context scaledDia
+        renderToGtk context True scaledDia
         return True
 
     return win

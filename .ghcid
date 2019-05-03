@@ -1,0 +1,1 @@
+--command "stack ghci diagrams-gi-gtk:exe:ex1 --flag diagrams-gi-gtk:buildExamples  --ghci-options=-fobject-code"

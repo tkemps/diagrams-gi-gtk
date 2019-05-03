@@ -2,13 +2,14 @@ name:                diagrams-gi-gtk
 version:             0.1
 synopsis:            Backend for rendering diagrams directly to GTK windows based on gi-gtk package
 description:         An optional add-on to the diagrams-cairo package
-                     which allows rendering diagrams directly to GTK windows.
+                     which allows rendering diagrams directly to GTK DrawingArea widgets
+                     provided by the gi-gtk package.
 homepage:            http://projects.haskell.org/diagrams/
-license:             BSD3
+license:             MIT
 license-file:        LICENSE
 author:              Torsten Kemps-Benedix
 maintainer:          tkx68@icloud.com
-copyright:           Torsten Kemps-Benedix
+copyright:           2019 Torsten Kemps-Benedix
 category:            Graphics
 build-type:          Simple
 cabal-version:       >=1.10
@@ -40,17 +41,20 @@ executable ex1
   if flag(buildExamples)
     build-depends:     base >= 4.2 && < 4.12,
                        text >= 1.2 && <= 1.3,
+                       transformers >= 0.5 && < 0.6,
                        diagrams >= 1.4 && < 1.5,
                        diagrams-lib >= 1.4 && < 1.5,
                        diagrams-cairo >= 1.3 && < 1.5,
                        diagrams-gi-gtk,
+                       cairo >= 0.13 && < 0.14,
                        gi-gtk >= 3.0 && < 3.1,
                        gi-gdk >= 3.0 && < 3.1,
                        haskell-gi >= 0.21,
                        colour >= 2.3 && < 2.4,
                        haskell-gi-base >= 0.21,
                        gi-glib >= 2.0,
-                       vector-space >= 0.16 && < 0.17
+                       vector-space >= 0.16 && < 0.17,
+                       gi-cairo >= 1.0 && < 1.1
   else
     buildable: False
   hs-source-dirs:      examples
