@@ -128,7 +128,7 @@
 --             h = height dia
 --             spec = mkSizeSpec2D (Just $ fromIntegral canvasX) (Just $ fromIntegral canvasY)
 --             scaledDia = toGtkCoords $ transform (requiredScaling spec (V2 w h)) dia
---         renderToGtk context scaledDia
+--         renderToGtk context True scaledDia
 --         return True
 --
 --     return win
@@ -190,7 +190,7 @@ toGtkCoords d = (\(_,_,d') -> d') $
             (CairoOptions "" absolute RenderOnly False)
             d
 
--- | Render a diagram to a 'DrawingArea''s context with double buffering,
+-- | Render a diagram to a 'DrawingArea''s context with double buffering if needed,
 --   rescaling to fit the full area.
 defaultRender ::
      Monoid' m =>
@@ -230,7 +230,7 @@ renderToGtk ctx db = render ctx opts db
 
 -- | Render a diagram onto a 'GI.Cairo.Context' using the given CairoOptions. Place this within a 'draw' event callback which provides the DrawArea's context.
 --
---   This uses cairo double-buffering.
+--   This uses cairo double-buffering if the thirs parameter is set to True..
 render ::
   (Monoid' m) =>
   GI.Cairo.Context -- ^ DrawingArea's 'GI.Cairo.Context' to render the digram onto
