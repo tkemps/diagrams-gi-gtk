@@ -10,30 +10,34 @@ windows, built on top of the diagrams-cairo backend and the gi-gtk package.
 
 ## Prerequisites
 
-You need a GTK3 development installation since gi-gtk and diagrams-cairo are required packages and these need them. See there for further explanations.
+You need a GTK4 development installation since gi-gtk and diagrams-cairo are required packages and these need them. See there for further explanations.
 
 ## Compilation from the repository
 
-To build and install the core library from the source repository, simply type
+To build and install the core library from the source repository, simply type:
+```bash
+cd diagrams-gi-gtk
+cabal build
+```
 
-    cd diagrams-gi-gtk && cabal install && cd ..
+To build the examples, type:
+```bash
+cabal build -fbuildExamples
+```
 
-To build the examples, type
+To run the examples, type:
+```bash
+cabal run ex1 -fbuildExamples
+```
 
-    cd diagrams-gi-gtk
-    cabal configure -fbuildExamples && cabal build
-    cd ..
+## How to use
 
-If you like stack then
-
-    stack build
-
-should do the trick too. In order to include the example in the build use
-
-    stack build --flag diagrams-gi-gtk:buildExamples
-
-instead.
-
+Given that `diagram :: Diagram Cairo` and `drawingArea :: DrawingArea` are in scope, the following snippet
+shows how to render the diagram within the drawing area:
+```haskell
+Gtk.drawingAreaSetDrawFunc drawingArea $ Just $ \_ context width height ->
+    defaultRender True diagram context width height
+```
 # License
 
 The source code is distributed under a MIT license. See the `LICENSE` file.
