@@ -1,5 +1,9 @@
 {-# LANGUAGE CPP #-}
+
 -----------------------------------------------------------------------------
+
+-----------------------------------------------------------------------------
+
 -- |
 -- Module      :  Diagrams.Backend.Gtk
 -- Copyright   :  (c) 2019 Torsten Kemps-Benedix
@@ -20,41 +24,46 @@
 -- for the original GTK3 documentation.
 --
 -- @
--- {-# LANGUAGE OverloadedLabels, OverloadedStrings, TypeFamilies, FlexibleContexts, NoMonomorphismRestriction #-}
+-- {-# LANGUAGE ImplicitParams #-}
+-- {-# LANGUAGE OverloadedLabels #-}
+-- {-# LANGUAGE OverloadedStrings #-}
+-- {-# LANGUAGE TypeFamilies #-}
+--
+-- -- | A first example of drawing diagrams from within GTK.  This
+-- --     program draws a Koch snowflake with the depth controllable
+-- --     via a GTK widget.
 -- module Main where
 --
--- import Control.Monad
--- import qualified GI.Gdk as Gdk
--- import qualified GI.Gtk as Gtk
--- import Data.GI.Base
--- import Diagrams.Prelude hiding (set)
--- import Diagrams.Size (requiredScaling)
--- import Diagrams.Backend.GIGtk
--- import Diagrams.Backend.Cairo (Cairo)
 -- import qualified Data.Colour as C
--- import Data.Text (Text)
--- import qualified Data.Text as T
+-- import Diagrams.Backend.Cairo (Cairo)
+-- import Diagrams.Backend.GIGtk ( defaultRender )
+-- import Diagrams.Prelude
+-- import GI.Gtk (AttrOp (..))
+-- import GI.Gtk qualified as Gtk
 --
+-- -- The classic Hilbert curves from the diagrams gallery:
 -- hilbert :: Int -> Diagram Cairo
--- hilbert = frame 1 . lw medium . lc (colors!!1) . strokeT . hilbert'
+-- hilbert = frame 1 . lw medium . lc (colors !! 1) . strokeT . hilbert'
 --   where
 --     hilbert' :: Int -> Trail V2 Double
 --     hilbert' 0 = mempty
 --     hilbert' n =
---         hilbert'' (n-1) # reflectY <> vrule 1
---         <> hilbert'  (n-1) <> hrule 1
---         <> hilbert'  (n-1) <> vrule (-1)
---         <> hilbert'' (n-1) # reflectX
+--       hilbert'' (n - 1) # reflectY <> vrule 1
+--         <> hilbert' (n - 1)
+--         <> hrule 1
+--         <> hilbert' (n - 1)
+--         <> vrule (-1)
+--         <> hilbert'' (n - 1) # reflectX
 --       where
 --         hilbert'' :: Int -> Trail V2 Double
---         hilbert'' m = hilbert' m # rotateBy (1/4)
+--         hilbert'' m = hilbert' m # rotateBy (1 / 4)
 --
--- -- Our drawing code, copied from
+-- -- Some more drawing code, copied from
 -- -- projects.haskell.org/diagrams/gallery/Pentaflake.html
--- colors ::[Colour Double]
+-- colors :: [Colour Double]
 -- colors = iterate (C.blend 0.1 white) red
 --
--- p ::Diagram Cairo
+-- p :: Diagram Cairo
 -- p = regPoly 5 1 # lwO 0
 --
 -- -- | create a snowflake diagram of depth @n@
@@ -63,105 +72,93 @@
 -- -- for @drawToGtk@, otherwise get a "No instance for (PathLike ..." error.
 -- pentaflake :: Int -> Diagram Cairo
 -- pentaflake 0 = p
--- pentaflake n = appends (p' # fc (colors !! (n-1)))
---                        (zip vs (repeat (rotateBy (1/2) p')))
---   where vs = take 5 . iterate (rotateBy (1/5))
---                     . (if odd n then negated else id) $ unitY
---         p' = pentaflake (n-1)
+-- pentaflake n =
+--   appends
+--     (p' # fc (colors !! (n - 1)))
+--     (zip vs (repeat (rotateBy (1 / 2) p')))
+--   where
+--     vs =
+--       take 5 . iterate (rotateBy (1 / 5))
+--         . (if odd n then negated else id)
+--         $ unitY
+--     p' = pentaflake (n - 1)
 --
--- pentaflake' ::Int -> Diagram Cairo
+-- pentaflake' :: Int -> Diagram Cairo
 -- pentaflake' n = pentaflake n # fc (colors !! n)
 --
--- -- end of diagrams code
+-- -- Set up the application window and add the diagrams
+-- activate :: Gtk.Application -> IO ()
+-- activate app = do
+--   win <- Gtk.new Gtk.ApplicationWindow [#application := app, #title := "Diagrams GI-GTK Example"]
 --
--- -- A function to set up the main window and signal handlers
--- createMainWindow :: IO Gtk.Window
--- createMainWindow = do
---     win <- new Gtk.Window []
+--   depthWidget <- Gtk.spinButtonNewWithRange 1 10 1
+--   -- when the spinButton changes, redraw the window
+--   Gtk.on depthWidget #valueChanged $ do
+--     Gtk.widgetQueueDraw win -- drawArea
+--     return ()
 --
---     on win #keyPressEvent $ \event -> do
---         name <- event `get` #keyval >>= Gdk.keyvalName
---         when (name == Just "Escape") Gtk.mainQuit
---         return False
+--   rbHilbert <- Gtk.new Gtk.CheckButton [#label := "Hilbert", #active := True]
+--   rbPentaFlake <- Gtk.new Gtk.CheckButton [#label := "Penta Flake", #active := False, #group := rbHilbert]
+--   radioButtons <- Gtk.new Gtk.Box [#orientation := Gtk.OrientationVertical]
 --
---     depthWidget <- Gtk.spinButtonNewWithRange 1 10 1
---     -- when the spinButton changes, redraw the window
---     on depthWidget #valueChanged $ do
---         Gtk.widgetQueueDraw win --drawArea
---         return ()
+--   #append radioButtons rbHilbert
+--   #append radioButtons rbPentaFlake
 --
---     rbHilbert <- Gtk.radioButtonNewWithLabelFromWidget Gtk.noRadioButton "Hilbert"
---     set rbHilbert [#active := True]
---     rbPentaFlake <- Gtk.radioButtonNewWithLabelFromWidget (Just rbHilbert) "Penta Flake"
---     set rbPentaFlake [#active := False]
---     boxRB <- Gtk.boxNew Gtk.OrientationVertical 0
---     Gtk.boxPackStart boxRB rbHilbert False False 0
---     Gtk.boxPackStart boxRB rbPentaFlake False False 0
+--   drawArea <- Gtk.new Gtk.DrawingArea [#widthRequest := 512, #heightRequest := 512]
 --
---     drawArea <- new Gtk.DrawingArea [#widthRequest := 512, #heightRequest := 512]
+--   hbox <- Gtk.new Gtk.Box [#orientation := Gtk.OrientationVertical]
 --
---     -- add the depthWidget control and drawArea to the main window
---     hbox <- Gtk.boxNew Gtk.OrientationVertical 0
---     Gtk.boxPackStart hbox boxRB False False 0 -- box child expand fill extraPadding
---     Gtk.boxPackStart hbox depthWidget False False 0 -- box child expand fill extraPadding
---     Gtk.boxPackStart hbox drawArea True True 0
---     #add win hbox
+--   #append hbox radioButtons
+--   #append hbox depthWidget
+--   #append hbox drawArea
 --
---     on rbHilbert #toggled $ do
---         Gtk.widgetQueueDraw drawArea
---         return ()
+--   Gtk.windowSetChild win (Just hbox)
 --
---     -- handle the drawArea's @onExpose@ signal.  We provide a function
---     -- that takes an area marked as dirty and redraws it.
---     -- This program simply redraws the entire drawArea.
---     --
---     -- Many gtk signal handlers return True if the signal was handled, and False
---     -- otherwise (in which case the signal will be propagated to the parent).
---     on drawArea #draw $ \context -> do
---         rect <- Gtk.widgetGetAllocation drawArea  -- size in pixels (Int)
---         canvasX <- get rect #width
---         canvasY <- get rect #height
---         curDepth <- fromIntegral <$> Gtk.spinButtonGetValueAsInt depthWidget
---         hilbertActive <- get rbHilbert #active
---         let dia = if hilbertActive then hilbert curDepth else pentaflake curDepth
---             w = width dia
---             h = height dia
---             spec = mkSizeSpec2D (Just $ fromIntegral canvasX) (Just $ fromIntegral canvasY)
---             scaledDia = toGtkCoords $ transform (requiredScaling spec (V2 w h)) dia
---         renderToGtk context True scaledDia
---         return True
+--   -- Redraw on changes to input parameters of the diagram
+--   Gtk.on rbHilbert #toggled $ Gtk.widgetQueueDraw drawArea
+--   Gtk.on depthWidget #changed $ Gtk.widgetQueueDraw drawArea
 --
---     return win
+--   Gtk.drawingAreaSetDrawFunc drawArea $
+--     Just $ \_ context width height -> do
+--       curDepth <- fromIntegral <$> Gtk.spinButtonGetValueAsInt depthWidget
+--       hilbertActive <- Gtk.get rbHilbert #active
+--       let diagram = if hilbertActive then hilbert curDepth else pentaflake curDepth
+--       defaultRender True diagram context width height
+--
+--   #show win
 --
 -- -- Gtk application
 -- --
--- -- Initialize the library, create and show the main window,
--- -- finally enter the main loop
+-- -- Start the GTK application
 -- main :: IO ()
 -- main = do
---     Gtk.init Nothing
---     win <- createMainWindow
---     on win #destroy Gtk.mainQuit
---     Gtk.widgetShowAll win
---     Gtk.main
+--   app <-
+--     Gtk.new
+--       Gtk.Application
+--       [ Gtk.On #activate (activate ?self)
+--       ]
+--
+--   #run app Nothing
+--   pure ()
+--
 -- @
------------------------------------------------------------------------------
 module Diagrams.Backend.GIGtk
-       ( defaultRender
-       , toGtkCoords
-       , renderToGtk
-       ) where
+  ( defaultRender,
+    toGtkCoords,
+    renderToGtk,
+  )
+where
 
-import           Control.Monad.Trans.Reader (runReaderT)
-import           Diagrams.Prelude hiding (render, height, width)
-import           Diagrams.Backend.Cairo.Internal
-import           Foreign.Ptr (castPtr)
-import           GHC.Int
-import qualified GI.Cairo (Context(..))
-import           GI.Gtk
+import Control.Monad.Trans.Reader (runReaderT)
+import Diagrams.Backend.Cairo.Internal
+import Diagrams.Prelude hiding (height, render, width)
+import Foreign.Ptr (castPtr)
+import GHC.Int (Int32)
+import qualified GI.Cairo (Context (..))
+import GI.Gtk (withManagedPtr)
 import qualified Graphics.Rendering.Cairo as Cairo
-import qualified Graphics.Rendering.Cairo.Internal as Cairo (Render(runRender))
-import qualified Graphics.Rendering.Cairo.Types as Cairo (Cairo(Cairo))
+import qualified Graphics.Rendering.Cairo.Internal as Cairo (Render (runRender))
+import qualified Graphics.Rendering.Cairo.Types as Cairo (Cairo (Cairo))
 
 -- | This function bridges gi-cairo with the hand-written cairo
 -- package. It takes a `GI.Cairo.Context` (as it appears in gi-cairo),
@@ -169,7 +166,7 @@ import qualified Graphics.Rendering.Cairo.Types as Cairo (Cairo(Cairo))
 -- `Render` action into the given context.
 renderWithContext :: GI.Cairo.Context -> Cairo.Render () -> IO ()
 renderWithContext ct r = withManagedPtr ct $ \p ->
-                         runReaderT (Cairo.runRender r) (Cairo.Cairo (castPtr p))
+  runReaderT (Cairo.runRender r) (Cairo.Cairo (castPtr p))
 
 -- | Convert a Diagram to the backend coordinates.
 --
@@ -185,28 +182,38 @@ renderWithContext ct r = withManagedPtr ct $ \p ->
 -- `toGtkCoords` does no rescaling of the diagram, however it is centered in
 -- the window.
 toGtkCoords :: Monoid' m => QDiagram Cairo V2 Double m -> QDiagram Cairo V2 Double m
-toGtkCoords d = (\(_,_,d') -> d') $
-  adjustDia Cairo
-            (CairoOptions "" absolute RenderOnly False)
-            d
+toGtkCoords d =
+  (\(_, _, d') -> d') $
+    adjustDia
+      Cairo
+      (CairoOptions "" absolute RenderOnly False)
+      d
 
 -- | Render a diagram to a 'DrawingArea''s context with double buffering if needed,
 --   rescaling to fit the full area.
 defaultRender ::
-     Monoid' m =>
-    GI.Cairo.Context -- ^ DrawingArea's context to render onto --  provided by the draw event
-    -> Bool -- ^render double buffered?
-    -> QDiagram Cairo V2 Double m   -- ^ Diagram
-    -> IO ()
-defaultRender ctx diagram = do
-  render ctx opts diagram
-    where opts w h = (CairoOptions
-              { _cairoFileName     = ""
-              , _cairoSizeSpec     = dims (V2 (fromIntegral w) (fromIntegral h))
-              , _cairoOutputType   = RenderOnly
-              , _cairoBypassAdjust = False
-              }
-           )
+  Monoid' m =>
+  -- | render double buffered?
+  Bool ->
+  -- | Diagram
+  QDiagram Cairo V2 Double m ->
+  -- | DrawingArea's context to render onto
+  GI.Cairo.Context ->
+  -- | Width
+  Int32 ->
+  -- | Height
+  Int32 ->
+  IO ()
+defaultRender db diagram ctx w h = render db opts diagram ctx
+  where
+    opts =
+      ( CairoOptions
+          { _cairoFileName = "",
+            _cairoSizeSpec = dims (V2 (fromIntegral w) (fromIntegral h)),
+            _cairoOutputType = RenderOnly,
+            _cairoBypassAdjust = False
+          }
+      )
 
 -- | Render a diagram to a 'DrawArea''s context with double buffering.  No
 --   rescaling or transformations will be performed.
@@ -214,52 +221,64 @@ defaultRender ctx diagram = do
 --   Typically the diagram will already have been transformed by
 --   'toGtkCoords'.
 renderToGtk ::
-  (Monoid' m)
-  => GI.Cairo.Context -- ^ DrawingArea's context to render onto --  provided by the draw event
-  -> Bool -- ^render double buffered?
-  -> QDiagram Cairo V2 Double m  -- ^ Diagram
-  -> IO ()
-renderToGtk ctx db = render ctx opts db
-  where opts _ _ = (CairoOptions
-                    { _cairoFileName     = ""
-                    , _cairoSizeSpec     = absolute
-                    , _cairoOutputType   = RenderOnly
-                    , _cairoBypassAdjust = True
-                    }
-                   )
+  (Monoid' m) =>
+  -- | Render double-buffered
+  Bool ->
+  -- | Diagram
+  QDiagram Cairo V2 Double m ->
+  -- | DrawingArea's context to render onto --  provided by the draw event
+  GI.Cairo.Context ->
+  -- | Width
+  Int32 ->
+  -- | Height
+  Int32 ->
+  IO ()
+renderToGtk db diagram ctx w h = render db opts diagram ctx
+  where
+    opts =
+      ( CairoOptions
+          { _cairoFileName = "",
+            _cairoSizeSpec = absolute,
+            _cairoOutputType = RenderOnly,
+            _cairoBypassAdjust = True
+          }
+      )
 
 -- | Render a diagram onto a 'GI.Cairo.Context' using the given CairoOptions. Place this within a 'draw' event callback which provides the DrawArea's context.
 --
 --   This uses cairo double-buffering if the thirs parameter is set to True..
 render ::
   (Monoid' m) =>
-  GI.Cairo.Context -- ^ DrawingArea's 'GI.Cairo.Context' to render the digram onto
-  -> (Int32 -> Int32 -> Options Cairo V2 Double) -- ^ options, depending on drawable width and height
-  -> Bool -- ^render double buffered?
-  -> QDiagram Cairo V2 Double m -- ^ Diagram
-  -> IO ()
-render ctx renderOpts db diagram =
-    renderWithContext ctx (do
-        (x1, x2, y1, y2) <- Cairo.clipExtents
-        let w = round $ x2 - x1
-            h = round $ y2 - y1
-            opts = renderOpts w h
+  -- | DrawingArea's 'GI.Cairo.Context' to render the digram onto
+  Bool ->
+  Options Cairo V2 Double ->
+  QDiagram Cairo V2 Double m ->
+  GI.Cairo.Context ->
+  -- | render double buffered?
+  -- | options, depending on drawable width and height
+  -- | Diagram
+  IO ()
+render db renderOpts diagram ctx =
+  renderWithContext
+    ctx
+    ( do
+        a@(x1, x2, y1, y2) <- Cairo.clipExtents
+        let w = x2 - x1
+            h = y2 - y1
         if db
-            then doubleBuffer $ do
-                delete w h
-                snd (renderDia Cairo opts diagram)
-            else
-                snd (renderDia Cairo opts diagram)
+          then doubleBuffer $ do
+            delete w h
+            snd (renderDia Cairo renderOpts diagram)
+          else snd (renderDia Cairo renderOpts diagram)
     )
 
 --
 --   Used to clear canvas when using double buffering.
-delete :: Int32 -> Int32 -> Cairo.Render ()
+delete :: Double -> Double -> Cairo.Render ()
 delete w h = do
   Cairo.setSourceRGB 1 1 1
-  Cairo.rectangle 0 0 (fromIntegral w) (fromIntegral h)
+  Cairo.rectangle 0 0 (w) (h)
   Cairo.fill
-
 
 -- | Wrap the given render action in double buffering.
 doubleBuffer :: Cairo.Render () -> Cairo.Render ()
@@ -268,4 +287,3 @@ doubleBuffer renderAction = do
   renderAction
   Cairo.popGroupToSource
   Cairo.paint
-
