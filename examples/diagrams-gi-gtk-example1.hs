@@ -109,8 +109,7 @@ main = do
   app <-
     Gtk.new
       Gtk.Application
-      [ #applicationId Gtk.:= "Diagrams GI-GTK Example",
-        Gtk.On #activate (activate ?self)
+      [ Gtk.On #activate (activate ?self)
       ]
 
   #run app Nothing
